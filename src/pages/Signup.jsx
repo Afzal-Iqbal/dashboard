@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import * as Yup from "yup";
 import { auth, db } from "../Firebase";
 import { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, getDoc, getDocs, query, where } from "firebase/firestore";
 
 function Signup() {
   const [loading, setLoading] = useState(false);
@@ -46,8 +46,16 @@ function Signup() {
     validationSchema: signupSchema,
     onSubmit: async (values) => {
       setLoading(true);
-      try {
-        const createUser = await createUserWithEmailAndPassword(
+      try{
+        const q = query(collection(db, "users"), where("email", "==", values.email));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          toast.error("This email has already been used. Please use a different one.");
+          setLoading(false);
+          return;
+        }
+         const createUser = await createUserWithEmailAndPassword(
           auth,
           values.email,
           values.password
@@ -65,7 +73,8 @@ function Signup() {
           formik.resetForm();
           navigate("/login");
         }
-      } catch (error) {
+      }
+      catch (error) {
         toast(error.message);
       } finally {
         setLoading(false);
