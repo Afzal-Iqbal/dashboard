@@ -11,130 +11,149 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  getDocs,
+  query,
+  where,
+} from "../Firebase";
 import { useFormik } from "formik";
 import { useState } from "react";
-import { toast } from "sonner";
 import * as Yup from "yup";
 import { db } from "../Firebase";
+import { toast } from "sonner";
 
 function AddStudent() {
   const [loading, setLoading] = useState(false);
-  const initialValues = {
-    name: "",
-    email: "",
-    phone: "",
-  };
-  const addStudentSchema = Yup.object().shape({
-    name: Yup.string().required("Name is required"),
-    email: Yup.string().email("Invalid email").required("Email is required"),
-    phone: Yup.string()
-      .min(10, "Invalid Phone Number")
-      .required("Phone Number is Required"),
-  });
+
   const formik = useFormik({
-    initialValues: initialValues,
-    validationSchema: addStudentSchema,
+    initialValues: {
+      name: "",
+      email: "",
+      phone: "",
+    },
+    validationSchema: Yup.object({
+      name: Yup.string().required("Name is required"),
+      email: Yup.string().email("Invalid email").required("Email is required"),
+      phone: Yup.string()
+        .min(10, "Invalid Phone Number")
+        .required("Phone Number is Required"),
+    }),
     onSubmit: async (values) => {
       setLoading(true);
       try {
-        const collectionRef = collection(db, "add-student");
-        const data = {
-          name: values.name,
-          email: values.email,
-          phone: values.phone,
+        // 🔍 Check if email already exists
+        const q = query(
+          collection(db, "add-student"),
+          where("email", "==", values.email)
+        );
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          toast.error("This email is already used. Please use a different one.");
+          setLoading(false);
+          return;
+        }
+
+        // ✅ Add new student
+        const docRef = await addDoc(collection(db, "add-student"), {
+          ...values,
+          attendance: [],
           timestamp: serverTimestamp(),
-        };
-        const docRef = await addDoc(collectionRef, data);
+        });
+
         if (docRef) {
           formik.resetForm();
           toast("Student record has been added!");
         }
       } catch (error) {
-        toast(error?.message);
+        toast(error?.message || "Something went wrong");
       } finally {
         setLoading(false);
       }
     },
   });
+
   return (
     <Dialog>
-      <form>
-        <DialogTrigger asChild>
-          <Button variant="outline">Add Student</Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Student Profile</DialogTitle>
-            <DialogDescription>
-              Please insert student details below
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-3">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={formik.values.name}
-                onChange={formik.handleChange}
-                placeholder="Enter Your Name"
-              />
-            </div>
-            {formik.errors.name && formik.touched.name && (
+      <DialogTrigger asChild>
+        <Button variant="outline">Add Student</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Student Profile</DialogTitle>
+          <DialogDescription>
+            Please insert student details below
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={formik.handleSubmit} className="grid gap-4">
+          <div className="grid gap-3">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              name="name"
+              value={formik.values.name}
+              onChange={formik.handleChange}
+              placeholder="Enter Your Name"
+            />
+            {formik.touched.name && formik.errors.name && (
               <span className="text-red-500 text-[12px]">
                 {formik.errors.name}
               </span>
             )}
-            <div className="grid gap-3">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                name="email"
-                value={formik.values.email}
-                onChange={formik.handleChange}
-                placeholder="Enter your Email"
-              />
-            </div>
-            {formik.errors.email && formik.touched.email && (
+          </div>
+
+          <div className="grid gap-3">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              name="email"
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              placeholder="Enter your Email"
+            />
+            {formik.touched.email && formik.errors.email && (
               <span className="text-red-500 text-[12px]">
                 {formik.errors.email}
               </span>
             )}
-            <div className="grid gap-3">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="telephone"
-                value={formik.values.phone}
-                onChange={formik.handleChange}
-                placeholder="Phone Number"
-              />
-            </div>
-            {formik.errors.phone && formik.touched.phone && (
+          </div>
+
+          <div className="grid gap-3">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              value={formik.values.phone}
+              onChange={formik.handleChange}
+              placeholder="Phone Number"
+            />
+            {formik.touched.phone && formik.errors.phone && (
               <span className="text-red-500 text-[12px]">
                 {formik.errors.phone}
               </span>
             )}
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="mt-4">
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button
-              onClick={() => {
-                formik.submitForm();
-              }}
-              disabled={loading}
-            >
+            <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </form>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }
+
 export default AddStudent;
