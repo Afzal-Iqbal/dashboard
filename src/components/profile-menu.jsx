@@ -8,7 +8,7 @@ import {
 import useAppStore from "../store";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../Firebase";
 
 function ProfileMenu() {
   const { setUserId } = useAppStore();

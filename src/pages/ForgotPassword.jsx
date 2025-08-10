@@ -15,7 +15,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import * as Yup from "yup";
-import { auth } from "../firebase";
+import { auth } from "../Firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
 
 function ForgotPassword() {
